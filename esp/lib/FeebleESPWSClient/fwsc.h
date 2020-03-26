@@ -22,10 +22,12 @@ private:
     unsigned long wsLastDisconnect = 0;
     const char * _host;
     const char * _url;
+    const char * _extraHeader = nullptr;
     uint16_t _port;
 
 public:
     void setCallback(std::function<void(WSEvent type, uint8_t * payload)> cb) { callback = cb; };
+    void setExtraHeader(const char * extraHeader) { _extraHeader = extraHeader; };
     int connect(const char * host, uint16_t port = 443, const char * url = "/");
     void disconnect();
     void loop(void);

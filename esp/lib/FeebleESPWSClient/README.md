@@ -4,9 +4,10 @@ Implements parts of the Websocket client protocol
 (https://tools.ietf.org/html/rfc6455) for ESP8266 and ESP32.
 
 Designed to be light weight and work with parse-esp to implement ParseLiveQuery.
+Surprisingly also worked against one GraphQL server.
 Might be usable elsewhere, but...
 
-Definitely not complient with the RFC6455.
+Definitely not compliant with the RFC6455.
 Some limitations vs full WS client:
 - Can only connect to TLS servers
 - Does not verify server TLS certificate
@@ -17,4 +18,4 @@ Some limitations vs full WS client:
 
 So this probably only works with the one kind of server I have tested against, i.e. Parse Server.
 
-TODO: Even basic documentation...
+TODO: Even basic documentation... Or more comments in code...

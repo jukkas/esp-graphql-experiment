@@ -132,10 +132,15 @@ int Fwsc::connect(const char * host, uint16_t port, const char * url) {
                         "Upgrade: websocket\r\n"
                         "Connection: Upgrade\r\n"
                         "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n"
-                        "Sec-WebSocket-Version: 13\r\n"
-                        "\r\n"),
-            url, host); 
-    _client.write((uint8_t*)buf , strlen(buf)); 
+                        "Sec-WebSocket-Version: 13\r\n"),
+            url, host);
+    if (_extraHeader != nullptr) {
+        strcat(buf, _extraHeader);
+        strcat_P(buf, PSTR("\r\n"));
+    }
+    strcat_P(buf, PSTR("\r\n"));
+
+    _client.write((uint8_t*)buf , strlen(buf));
     _client.flush();
 
     valread = _client.readBytes((uint8_t*)buf, sizeof(buf));
