@@ -1,31 +1,6 @@
 <script>
   import client from "./graphql-client";
   import gql from "graphql-tag";
-/*
-  let todo = {
-    title: ""
-  };
-  async function insertTodo() {
-    const mutation = gql`
-      mutation InsertTodo($title: String!) {
-        insert_todo(objects: { title: $title, completed: false }) {
-          affected_rows
-          returning {
-            id
-          }
-        }
-      }
-    `;
-    client.mutate({
-      mutation,
-      variables: {
-        title: todo.title
-      }
-    });
-  }
-
-
-*/
 
   async function updateLight(device) {
     const mutation = gql`
@@ -43,6 +18,7 @@
       }
     });
   }
+
   async function updateOnline(device) {
     const mutation = gql`
       mutation UpdateOnline($serial:String!, $online:Boolean!) {
@@ -64,6 +40,7 @@
     device.light = !device.light;
     updateLight(device);
   }
+
   function toggleOnline(device) {
     device.online = !device.online;
     updateOnline(device);
@@ -91,41 +68,6 @@ const query = gql`
 
 <main>
 {#if $devices && $devices.data}
-
-  <!-- <table>
-    <thead><tr>
-      <td>Serial</td><td>Name</td>
-      <td>Online</td>
-      <td>Light</td>
-      <td>Temperature</td>
-      <td>Created</td>
-      <td>Updated</td>
-    </tr></thead>
-    <tbody>
-      {#each $devices.data.devices as d}
-        <tr>
-          <td>{d.serial}</td>
-          <td>{d.name}</td>
-          <td>
-            <label>
-              <input type="checkbox" bind:checked={d.online} on:change={() => updateOnline(d)} />
-              {d.online ? 'Online':'Offline'}
-            </label>
-          </td>
-          <td>
-            <label>
-              <input type="checkbox" bind:checked={d.light} on:change={() => updateLight(d)} />
-              {d.light ? 'On':'Off'}
-            </label>
-          </td>
-          <td>{d.temperature}</td>
-          <td>{d.created_at}</td>
-          <td>{d.updated_at}</td>
-        </tr>
-      {/each}
-    </tbody>
-  </table> -->
-
   {#each $devices.data.devices as d}
     <section>
       <div>
@@ -140,25 +82,24 @@ const query = gql`
         {d.light ? 'On':'Off'}
       </div>
       <div>
-        {d.temperature} {d.created_at} {d.updated_at}
+        <table>
+          <tr><td>Temperature</td><td>{d.temperature ? d.temperature : 'n/a'} </td></tr>
+          <tr><td>Created</td><td>{d.created_at.substring(0,19)}</td></tr>
+          <tr><td>Updated</td><td>{d.updated_at.substring(0,19)}</td></tr>
+        </table>
       </div>
     </section>
   {/each}
-
-
+{:else}
+  <div>Loading data...</div>
 {/if}
 </main>
 
 <style>
 .serial {
-  /*width: 9em;*/
   text-align: center;
 }
-.name {
-  /*width: 20em;*/
-}
 .light {
-  display: inline-block;
   width: 5em;
   text-align: center;
 }
@@ -166,15 +107,19 @@ const query = gql`
   background-color: lawngreen;
 }
 .off {
-  background-color: red;
+  background-color: rgb(238, 230, 230);
 }
 section {
   display: flex;
-  margin: auto;
+  width: min-content;
   max-width: 90%;
-  border: 1px solid;
+  border: 1px solid #ccc;
   padding: 1em;
-  margin-bottom: 1em;
+  margin: 1em auto;
   border-radius: 0.5em;
+}
+section > div {
+  padding: 1em;
+  margin: 0.5em;
 }
 </style>

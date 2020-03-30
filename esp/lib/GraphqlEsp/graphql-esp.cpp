@@ -23,7 +23,7 @@ void GraphqlEsp::connect(const char * host, uint16_t port, const char * url) {
             {
                 char* type = parseText((char *)payload, "type");
                 if (type) {
-                    //Serial.printf_P(PSTR("@GraphqlEsp: type:%s\n"), type);
+                    //Serial.printf_P(PSTR("GraphqlEsp: type:%s\n"), type);
                     if (!strncmp_P(type, PSTR("connection_ack"), 14)) { // Connection successfull
                         Serial.printf_P(PSTR("GraphqlEsp: Got connection_ack\n"));
                         /* See comment above about the CRASH! */
@@ -39,7 +39,7 @@ void GraphqlEsp::connect(const char * host, uint16_t port, const char * url) {
                         return;
                     }
                 }
-                //Serial.printf_P(PSTR("@GraphqlEsp: ws text:%s\n"),(char*)payload);
+                //Serial.printf_P(PSTR("GraphqlEsp: ws text:%s\n"),(char*)payload);
                 callCallback(GQEvent::data, (char *)payload);
             }
             break;
@@ -52,32 +52,30 @@ void GraphqlEsp::connect(const char * host, uint16_t port, const char * url) {
     _ws.connect(host, port, url);
 }
 
-void GraphqlEsp::mutation(const char *data) {
+static int id=1;
+// Returns id (for matching responses)
+int GraphqlEsp::gqOperation(const char *oper, const char *data) {
     char buf[1024];
-    sprintf_P(buf, PSTR("{\"id\":\"1\",\"type\":\"start\",\"payload\":{\"query\":"
-                        "\"mutation{"
+    sprintf_P(buf, PSTR("{\"id\":\"%d\",\"type\":\"start\",\"payload\":{\"query\":"
+                        "\"%s{"
                         "%s"
-                        "}\"}}"), data);
-    Serial.printf_P(PSTR("Sending mutation:"));
-    Serial.println(buf);
+                        "}\"}}"), id, oper, data);
+    Serial.printf_P(PSTR("GraphqlEsp: Sending %s: %s\n"), oper, buf);
     _ws.sendtxt(buf);
+    return id++;
 }
 
-/* TODO:
-void GraphqlEsp::query(const char *data) {
-
+int GraphqlEsp::mutation(const char *data) {
+    return gqOperation("mutation", data);
 }
-*/
 
-void GraphqlEsp::subscription(const char *data) {
-    char buf[1024];
-    sprintf_P(buf, PSTR("{\"id\":\"0\",\"type\":\"start\",\"payload\":{\"query\":"
-                        "\"subscription{"
-                        "%s"
-                        "}\"}}"), data);
-    Serial.printf_P(PSTR("Sending subscription:"));
-    Serial.println(buf);
-    _ws.sendtxt(buf);
+int GraphqlEsp::query(const char *data) {
+    return gqOperation("query", data);
+}
+
+
+int GraphqlEsp::subscription(const char *data) {
+    return gqOperation("subscription", data);
 }
 
 void GraphqlEsp::disconnect() {

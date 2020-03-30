@@ -9,9 +9,9 @@ class GraphqlEsp {
     void setExtraHeader(const char *headerLine) { _ws.setExtraHeader(headerLine); };
     void setCallback(std::function<void(GQEvent type, char* payload)> cb) { _callback = cb; };
     void connect(const char * host, uint16_t port = 443, const char * url = "/graphql");
-    void mutation(const char *data);
-    // TODO: void query(const char* data);
-    void subscription(const char *data);
+    int mutation(const char *data);
+    int query(const char* data);
+    int subscription(const char *data);
     void disconnect();
     void loop(void);
     bool isConnected = false;
@@ -20,6 +20,7 @@ class GraphqlEsp {
     std::function<void(GQEvent type, char* payload)> _callback = nullptr;
     Fwsc _ws;
     void callCallback(GQEvent type, char* payload);
+    int gqOperation(const char *oper, const char *data);
 };
 
 /* Very limited JSON parsing routines */
