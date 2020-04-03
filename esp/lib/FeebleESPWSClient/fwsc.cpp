@@ -140,6 +140,8 @@ int Fwsc::connect(const char * host, uint16_t port, const char * url) {
     }
     strcat_P(buf, PSTR("\r\n"));
 
+    //Serial.println(buf);
+
     _client.write((uint8_t*)buf , strlen(buf));
     _client.flush();
 
