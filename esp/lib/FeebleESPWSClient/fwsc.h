@@ -7,6 +7,8 @@
 #endif
 #include <WiFiClientSecure.h>
 
+#define FWSCBUFLEN 2048
+
 enum class WSEvent { error, disconnected, connected, text, unsupported };
 
 const unsigned long initialWsReconnectInterval = 60000;
@@ -14,7 +16,7 @@ const unsigned long initialWsReconnectInterval = 60000;
 class Fwsc
 {
 private:
-    uint8_t _buffer[2048] = {0}; // TODO: use buffer reserved by caller
+    uint8_t _buffer[FWSCBUFLEN] = {0}; // TODO: use buffer reserved by caller
     WiFiClientSecure _client;
     std::function<void(WSEvent type, uint8_t * payload)> callback = nullptr;
     void callCallback(WSEvent type, uint8_t * payload);

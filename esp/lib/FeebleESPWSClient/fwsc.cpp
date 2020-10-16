@@ -9,34 +9,48 @@
 
 /* Decodes WS message. Returns amount of parsed bytes */
 int Fwsc::parse_ws_message(const uint8_t *data, int len) {
-    //uint8_t fin = (data[0] & 0b10000000) >> 7;
-    //uint8_t rsv = (data[0] & 0b01110000) >> 4;
+
+    static int incompleteRemaining = 0; // If WS text frame comes in multiple read():s, how many bytes still expected
+    /* If last Client.read did not return full WS text frame, lets assume this next one is rest of it.
+        TODO/FIXME: is that assumption always true? */
+    if (incompleteRemaining>0) {
+        int lastMsgLen = strnlen((char *)_buffer, FWSCBUFLEN-len-1);
+        //Serial.printf_P(PSTR("@incompleteRemaining=%d, len=%d lastMsgLen=%d\n"), incompleteRemaining, len, lastMsgLen);
+        Serial.printf_P(PSTR(" f:%d/%d\n"), lastMsgLen, len);
+        memcpy(_buffer+lastMsgLen, data, len);
+        _buffer[lastMsgLen+len] = 0;
+        incompleteRemaining -= len;
+        if (incompleteRemaining < 1) {
+            callCallback(WSEvent::text, _buffer);
+        }
+        return len;
+    }
+
+    /* "Normal" handling of beginning of WS message */
+
     uint8_t opcode = data[0] & 0b00001111;
 
     _buffer[0] = 0;
-
-    //Serial.printf_P(PSTR("fwsc: parse_ws_message: bytes:%d, [0]:%x, fin:%d, rsv:%d, opcode:0x%x"), len, data[0], fin, rsv, opcode);
 
     /* Most frame types can be handled before decoding rest */
     if (opcode == 0x08) { // connection close
         _client.stop();
         isConnected = false;
         callCallback(WSEvent::disconnected, _buffer);
-        Serial.printf_P(PSTR(": connection close\n"));
+        Serial.printf_P(PSTR("fwsc: connection close\n"));
         return len;
     }
 
     if (opcode != 0x01 && opcode != 0x09) { // Not supported / do not care
-        Serial.printf_P(PSTR(": not supported / do not care\n"));
+        Serial.printf_P(PSTR("fwsc: not supported / do not care (opcode %02x)\n"), opcode);
         return len;
     }
 
-    //uint8_t mask = data[1] >> 7;
     int payload_length = (data[1] & 0b01111111);
     uint8_t const *p = data + 2;
 
     if (payload_length > 126) {
-        Serial.printf_P(PSTR(": Error: length not supported\n"));
+        Serial.printf_P(PSTR("fwsc: Error: unsupported message length\n"));
         return len;
     }
 
@@ -47,27 +61,28 @@ int Fwsc::parse_ws_message(const uint8_t *data, int len) {
     }
 
     int msgLen = p-data+payload_length; // Actual amount of bytes handled: headers+payload
-    if (msgLen > len) {
-        Serial.printf_P(PSTR("Error: message > inbytes. Invalid message\n"));
+    if (msgLen > len) { // WS text longer than what we received
+        incompleteRemaining = msgLen-len;
+        int charcount = len-(p-data);
+        Serial.printf_P(PSTR("F:%d/%d "), charcount, msgLen-len);
+        memcpy(_buffer, p, charcount);
+        _buffer[charcount] = 0;
         return len;
     }
 
-    if (opcode == 0x9) { // ping
-        memcpy(_buffer, data, msgLen);
-        _buffer[0] = (_buffer[0] & 0b11110000) | 0x0a; // Make opcode "pong"
-        _client.write(_buffer, msgLen);
-        // Serial.printf_P(PSTR(": ping responded with pong\n"));
+    if (opcode == 0x9) { // ping (FIXME: this is not robust. Assumes len<126)
+        memcpy(_buffer+4, data, msgLen);
+        _buffer[0] = (data[0] & 0b11110000) | 0x0a; // Make opcode "pong"
+        _buffer[1] = data[1] | 0x80; // len+MASK
+        memset(_buffer+2, 0, 4);
+        _client.write(_buffer, msgLen+4);
+        Serial.printf(".");
         return msgLen;
     }
 
     // Text frame: copy payload text to _buffer
-    int i;
-    for (i=0; i < payload_length; i++) {
-        _buffer[i] = p[i];
-    }
+    memcpy(_buffer, p, payload_length);
     _buffer[payload_length] = 0;
-
-    // Serial.printf_P(PSTR(": text frame. mask: %d, lenght:%d\n"), mask, payload_length);
     callCallback(WSEvent::text, _buffer);
     return msgLen;
 }
@@ -79,15 +94,22 @@ static size_t encode_ws_message(uint8_t *buf, const char *text) {
     uint8_t *p = buf+2;
     size_t ret_len = len + 2;
     if (len < 126) {
-        buf[1] = len;
+        buf[1] = 0x80 | len; // MASK bit and text length;
     } else {
-        buf[1] = 126;
+        buf[1] = 0x80 | 126;
         buf[2] = len >> 8;
         buf[3] = len & 0xff;
         p += 2;
         ret_len += 2;
     }
     unsigned int i;
+
+    // Add Masking-key (insecurely just zeros...)
+    memset(p, 0, 4);
+    p += 4;
+    ret_len += 4;
+
+    // Add text data
     for (i = 0; i < len; i++) {
         p[i] = text[i];
     }
@@ -147,7 +169,7 @@ int Fwsc::connect(const char * host, uint16_t port, const char * url) {
 
     valread = _client.readBytes((uint8_t*)buf, sizeof(buf));
     buf[valread > 0 ? valread:0] = 0; 
-    Serial.printf("DEBUG::fwsc: Got: %d bytes ------\n%s\n------\n", valread, buf);
+    //Serial.printf("DEBUG::fwsc: Got: %d bytes ------\n%s\n------\n", valread, buf);
 
     isConnected = true;
     callCallback(WSEvent::connected, _buffer);
@@ -160,6 +182,7 @@ void Fwsc::loop(void) {
     if (!_client.connected()) {
         if (isConnected) {
             isConnected = false;
+            _client.stop();
             callCallback(WSEvent::disconnected, _buffer);
         }
 
@@ -194,6 +217,7 @@ bool Fwsc::sendtxt(const char * payload) {
 
 // Disconnect WS connection
 void Fwsc::disconnect() {
+    //Serial.printf_P(PSTR("DEBUG::fwsc: Sending WS disconnect message\n"));
     uint8_t buf[2];
     buf[0] = 0b10001000;
     buf[1] = 0;
