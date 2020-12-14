@@ -10,7 +10,8 @@ I have tested against is [Hasura](https://hasura.io/) running in Heroku.
 
 See directory/folder `ESP`. The project assumes you are using PlatformIO and uses Arduino libraries/runtime.
 `src` contains an example main.c. `lib` has GraphqlEsp C++ class that implements raw GraphQL/Websocket connectivity.
-GraphqlEsp in turn uses Fwsc (FeebleESPWSClient) websocket implementation.
+GraphqlEsp in turn uses fwsc (FeebleESPWSClient) websocket library from https://github.com/jukkas/FeebleESPWSClient
+(which you must install manually if using Arduino-IDE instead of Platformio).
 
 Assumptions:
 
